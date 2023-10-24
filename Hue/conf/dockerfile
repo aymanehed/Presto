@@ -1,0 +1,3 @@
+from  gethue/hue:latest
+copy presto.jar /home
+env  classpath=$classpath:/home/presto.jar
