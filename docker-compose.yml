@@ -1,0 +1,167 @@
+version: "3.8"
+services:
+  Mysql:
+    image: mysql:8-debian
+    volumes:
+      - db:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: bio
+      MYSQL_USER: aymane
+      MYSQL_PASSWORD: aymane
+    networks:
+      - db
+  Phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    depends_on:
+      - Mysql
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+    networks:
+      - db
+      
+  cassandra:
+    image: cassandra:latest
+    ports:
+      - "7000:7000"
+      - "9042:9042"
+    volumes:
+      - cassandras_data:/var/lib/cassandra
+    networks:
+      - db
+
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop2.7.4-java8
+    volumes:
+      - namenode:/hadoop/dfs/name
+    environment:
+      - CLUSTER_NAME=test
+    env_file:
+      - ./hadoop-hive.env
+    ports:
+      - "50070:50070"
+    networks:
+      - db
+
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop2.7.4-java8
+    volumes:
+      - datanode:/hadoop/dfs/data
+    env_file:
+      - ./hadoop-hive.env
+    environment:
+      SERVICE_PRECONDITION: "namenode:50070"
+    ports:
+      - "50075:50075"
+    networks:
+      - db
+
+  hive-server:
+    image: bde2020/hive:2.3.2-postgresql-metastore
+    env_file:
+      - ./hadoop-hive.env
+    environment:
+      HIVE_CORE_CONF_javax_jdo_option_ConnectionURL: "jdbc:postgresql://hive-metastore/metastore"
+      SERVICE_PRECONDITION: "hive-metastore:9083"
+    ports:
+      - "10000:10000"
+    networks:
+      - db
+
+  hive-metastore:
+    image: bde2020/hive:2.3.2-postgresql-metastore
+    env_file:
+      - ./hadoop-hive.env
+    command: /opt/hive/bin/hive --service metastore
+    environment:
+      SERVICE_PRECONDITION: "namenode:50070 datanode:50075 hive-metastore-postgresql:5432"
+    ports:
+      - 9083
+    networks:
+      - db
+
+  hive-metastore-postgresql:
+    image: bde2020/hive-metastore-postgresql:2.3.0
+    networks:
+      - db
+
+  postgres:
+    container_name: postgres
+    image: postgres
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      PGDATA: /data/postgres
+    volumes:
+       - postgres:/data/postgres2
+    ports:
+      - "5432:5432"
+    networks:
+      - postgres
+      - db
+    restart: unless-stopped 
+  pgadmin:
+    container_name: pgadmin
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-pgadmin4@pgadmin.org}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-root}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+       - pgadmin:/var/lib/pgadmin
+
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    networks:
+      - postgres
+      - db
+    restart: unless-stopped
+  trino:
+    ports:
+      - "8083:8080"
+    image: "trinodb/trino:422"
+    volumes:
+      - ./docker/trino/etc:/usr/lib/trino/etc:ro
+      - ./docker/trino/catalog:/etc/trino/catalog
+    networks:
+      - db    
+      
+  Presto:
+    image: ahanaio/prestodb-sandbox
+    networks:
+      - db
+    ports:
+      - "8082:8080"
+    volumes:
+       - presto_data:/var/lib/presto
+  Hue:
+    image: gethue
+    ports:
+      - "8888:8888"
+    dns: 8.8.8.8
+    environment:
+      - HUE_IGNORE_PASSWORD_SCRIPT_ERRORS=true
+    volumes:
+      - ./Hue/conf/hue-overrides.ini:/usr/share/hue/desktop/conf/hue.ini
+    networks:
+      - db
+    depends_on:
+    - "Mysql"
+
+volumes:
+  db:
+  presto_data:
+  cassandras_data:
+  namenode:
+  datanode:
+  postgres:
+  pgadmin:
+  trino_data:
+networks:
+  kafka_zookeeper:
+  postgres:
+    driver: bridge
+  db:  
