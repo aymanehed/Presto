@@ -1,6 +1,6 @@
 # Presto & Trino
 ## This project concerns Data virtualization using Presto on data mesh 
-###  there are 4 types of Database hive,Mysql,Postgres and Cassandra
+### There are 4 types of Database hive,Mysql,Postgres and Cassandra
 #### Presto or Trino fetch on these databases to create products 
 ##### Presto UI
 <img width="943" alt="presto_UI" src="https://github.com/aymanehed/Presto/assets/93987581/6d41a447-5aac-4c28-a208-87834d94b3a2">
